@@ -7,6 +7,10 @@ Uso:
     python run_scraper.py --ciudad medellin --tipo arriendo --paginas 5
     python run_scraper.py --ciudad todas --tipo venta --paginas 2
 
+Filtro de tipos de propiedad (default: solo residencial apartamento+casa):
+    python run_scraper.py ... --tipos-propiedad apartamento,casa,apartaestudio
+    python run_scraper.py ... --tipos-propiedad todos    # sin filtrar
+
 Fuentes soportadas:
     --fuente fincaraiz  (default)
 """
@@ -20,6 +24,7 @@ import sys
 from app.core.database import SessionLocal
 from app.models.property import Ciudad, TipoOperacion
 from app.services.scraping import scrape_fincaraiz
+from app.services.scraping.fincaraiz_scraper import DEFAULT_ALLOWED_PROPERTY_TYPES
 
 CIUDADES_CLI = {c.value: c for c in Ciudad}
 TIPOS_CLI = {t.value: t for t in TipoOperacion}
@@ -52,12 +57,28 @@ def parse_args() -> argparse.Namespace:
         help="Fuente de datos (por ahora solo fincaraiz)",
     )
     parser.add_argument(
+        "--tipos-propiedad",
+        default=",".join(sorted(DEFAULT_ALLOWED_PROPERTY_TYPES)),
+        help=(
+            "Lista separada por comas de tipos permitidos (en minusculas). "
+            "Usa 'todos' para no filtrar. "
+            f"Default: {','.join(sorted(DEFAULT_ALLOWED_PROPERTY_TYPES))}"
+        ),
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
         help="Log DEBUG",
     )
     return parser.parse_args()
+
+
+def _parse_tipos_propiedad(raw: str) -> frozenset[str] | None:
+    v = raw.strip().lower()
+    if v in {"todos", "todas", "*", ""}:
+        return None
+    return frozenset(t.strip() for t in v.split(",") if t.strip())
 
 
 def _resolver_ciudades(v: str) -> list[Ciudad]:
@@ -77,23 +98,37 @@ def main() -> int:
 
     ciudades = _resolver_ciudades(args.ciudad)
     tipos = _resolver_tipos(args.tipo)
+    allowed = _parse_tipos_propiedad(args.tipos_propiedad)
+    filtro_txt = "todos" if allowed is None else ",".join(sorted(allowed))
 
     total_ins = 0
     total_dup = 0
+    total_filt = 0
     with SessionLocal() as db:
         for ciudad in ciudades:
             for tipo in tipos:
-                print(f"\n>>> Scraping {args.fuente} | {ciudad.value} | {tipo.value} | {args.paginas} páginas")
-                stats = scrape_fincaraiz(db, ciudad, tipo, paginas=args.paginas)
+                print(
+                    f"\n>>> Scraping {args.fuente} | {ciudad.value} | {tipo.value} "
+                    f"| {args.paginas} páginas | tipos={filtro_txt}"
+                )
+                stats = scrape_fincaraiz(
+                    db, ciudad, tipo,
+                    paginas=args.paginas,
+                    allowed_property_types=allowed,
+                )
                 print(
                     f"    ok={stats.paginas_ok} fail={stats.paginas_fallidas} "
-                    f"vistos={stats.items_vistos} insertados={stats.items_insertados} "
-                    f"duplicados={stats.items_duplicados}"
+                    f"vistos={stats.items_vistos} nuevos={stats.items_insertados} "
+                    f"actualizados={stats.items_duplicados} filtrados={stats.items_filtrados}"
                 )
                 total_ins += stats.items_insertados
                 total_dup += stats.items_duplicados
+                total_filt += stats.items_filtrados
 
-    print(f"\n=== TOTAL insertados={total_ins} duplicados/ignorados={total_dup} ===")
+    print(
+        f"\n=== TOTAL nuevos={total_ins} actualizados={total_dup} "
+        f"filtrados_por_tipo={total_filt} ==="
+    )
     return 0
 
 

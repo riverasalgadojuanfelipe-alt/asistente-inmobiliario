@@ -47,6 +47,7 @@ class Property(Base):
     descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     fuente: Mapped[str] = mapped_column(String(120), nullable=False)
+    property_type: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     url_original: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     fecha_extraccion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

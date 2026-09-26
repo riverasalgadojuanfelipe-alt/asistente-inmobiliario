@@ -41,6 +41,11 @@ Campos por item que usamos (searchFast.data[i]):
     - locations.location_main.name   -> ciudad/localidad
     - property_type.name / operation_type.name
 
+Valores observados en `property_type.name` (Fincaraíz, ES):
+    Apartamento, Casa, Casa Campestre, Finca, Lote, Local, Oficina,
+    Bodega, Consultorio, Habitación, Edificio, Apartaestudio.
+    (Normalizamos a lower() al persistir para simplificar filtros.)
+
 Selectores DOM (fallback, por si tumban el __NEXT_DATA__):
     - Actualmente NO tenemos fallback DOM implementado. Si el JSON deja de
       existir, hay que reimplementar con Playwright o encontrar el endpoint
@@ -124,6 +129,10 @@ DELAY_MIN_S = 2.0
 DELAY_MAX_S = 5.0
 REQUEST_TIMEOUT_S = 30.0
 
+# Tipos de propiedad relevantes para un asistente inmobiliario RESIDENCIAL.
+# Se compara en minúsculas contra `property_type.name` normalizado.
+DEFAULT_ALLOWED_PROPERTY_TYPES: frozenset[str] = frozenset({"apartamento", "casa"})
+
 
 @dataclass(slots=True)
 class ScrapeStats:
@@ -132,6 +141,7 @@ class ScrapeStats:
     items_vistos: int = 0
     items_insertados: int = 0
     items_duplicados: int = 0
+    items_filtrados: int = 0  # tipo excluido por el filtro
 
 
 def _build_url(ciudad: Ciudad, tipo: TipoOperacion, pagina: int) -> str:
@@ -227,6 +237,9 @@ def _to_property_row(
         if descripcion:
             descripcion = descripcion.strip()[:2000]
 
+        prop_type_raw = ((item.get("property_type") or {}).get("name") or "").strip()
+        property_type = prop_type_raw.lower() or None
+
         return {
             "ciudad": ciudad,
             "tipo_operacion": tipo,
@@ -237,6 +250,7 @@ def _to_property_row(
             "barrio": barrio,
             "descripcion": descripcion,
             "fuente": "fincaraiz",
+            "property_type": property_type,
             "url_original": url_original,
         }
     except (TypeError, ValueError):
@@ -246,18 +260,40 @@ def _to_property_row(
 
 def _upsert_batch(db: Session, rows: Iterable[dict]) -> tuple[int, int]:
     """
-    Inserta el batch con ON CONFLICT DO NOTHING sobre url_original.
-    Devuelve (insertados, duplicados_o_ignorados).
+    Inserta el batch. En conflicto sobre url_original actualiza campos que
+    conviene mantener frescos. Devuelve (insertados_nuevos, actualizados).
     """
+    from sqlalchemy import func as _func, select as _select
+
     rows = list(rows)
     if not rows:
         return 0, 0
+
+    urls = [r["url_original"] for r in rows if r.get("url_original")]
+    already = 0
+    if urls:
+        already = db.execute(
+            _select(_func.count())
+            .select_from(Property)
+            .where(Property.url_original.in_(urls))
+        ).scalar() or 0
+
     stmt = pg_insert(Property).values(rows)
-    stmt = stmt.on_conflict_do_nothing(index_elements=["url_original"])
-    result = db.execute(stmt)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["url_original"],
+        set_={
+            "precio": stmt.excluded.precio,
+            "area_m2": stmt.excluded.area_m2,
+            "property_type": stmt.excluded.property_type,
+            "descripcion": stmt.excluded.descripcion,
+            "barrio": stmt.excluded.barrio,
+        },
+    )
+    db.execute(stmt)
     db.commit()
-    inserted = result.rowcount or 0
-    return inserted, len(rows) - inserted
+
+    inserted_new = len(rows) - already
+    return inserted_new, already
 
 
 def scrape_fincaraiz(
@@ -267,11 +303,15 @@ def scrape_fincaraiz(
     paginas: int = 1,
     *,
     delay_range_s: tuple[float, float] = (DELAY_MIN_S, DELAY_MAX_S),
+    allowed_property_types: frozenset[str] | None = DEFAULT_ALLOWED_PROPERTY_TYPES,
 ) -> ScrapeStats:
     """
-    Scrapea `paginas` páginas de resultados de Fincaraíz para la combinación
-    (ciudad, tipo_operacion) y guarda cada propiedad en la BD deduplicando por
-    `url_original`.
+    Scrapea `paginas` páginas de Fincaraíz para (ciudad, tipo_operacion) y
+    persiste con dedup por `url_original`.
+
+    `allowed_property_types`: set de tipos (en minúsculas) que se aceptan.
+    Si es None se acepta cualquier tipo (útil para diagnósticos).
+    Default excluye lotes, fincas, locales, oficinas, bodegas, etc.
     """
     stats = ScrapeStats()
     d_min, d_max = delay_range_s
@@ -299,7 +339,18 @@ def scrape_fincaraiz(
 
             items, paginator = _items_from_next_data(payload)
             stats.items_vistos += len(items)
-            rows = [r for r in (_to_property_row(it, ciudad, tipo) for it in items) if r]
+
+            rows: list[dict] = []
+            for it in items:
+                row = _to_property_row(it, ciudad, tipo)
+                if row is None:
+                    continue
+                if allowed_property_types is not None:
+                    if (row.get("property_type") or "") not in allowed_property_types:
+                        stats.items_filtrados += 1
+                        continue
+                rows.append(row)
+
             ins, dup = _upsert_batch(db, rows)
             stats.items_insertados += ins
             stats.items_duplicados += dup

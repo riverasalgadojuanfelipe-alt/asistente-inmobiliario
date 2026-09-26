@@ -15,6 +15,7 @@ class PropertyBase(BaseModel):
     barrio: str | None = None
     descripcion: str | None = None
     fuente: str = Field(min_length=1, max_length=120)
+    property_type: str | None = Field(default=None, max_length=64)
     url_original: str | None = Field(default=None, max_length=1024)
 
 
