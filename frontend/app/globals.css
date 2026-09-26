@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #faf8f5;
+  --color-cream-warm: #f3efe7;
+  --color-graphite: #1c1b1a;
+  --color-graphite-soft: #4a4744;
+  --color-graphite-mute: #8a827b;
+  --color-forest: #1f3a34;
+  --color-forest-hover: #2a4d45;
+  --color-bronze: #b8935f;
+  --color-bronze-hover: #a37f4d;
+  --color-carbon: #15171a;
+  --color-carbon-soft: #1e2125;
+  --color-hairline: #e6ded1;
+
+  --font-serif: var(--font-fraunces), "Playfair Display", ui-serif, Georgia, serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --shadow-card: 0 1px 2px rgba(28, 27, 26, 0.04), 0 8px 24px rgba(28, 27, 26, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(28, 27, 26, 0.06), 0 20px 40px rgba(28, 27, 26, 0.09);
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: var(--color-cream);
+  color: var(--color-graphite);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "ss02";
+}
+
+html.dark body {
+  background-color: var(--color-carbon);
+  color: #ece7de;
+}
+
+/* Animación sutil para el punto pulsante del loading */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1); }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 1.6s ease-in-out infinite;
+}
+
+/* Fade-in suave para resultados */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
