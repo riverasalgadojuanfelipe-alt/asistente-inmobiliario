@@ -17,6 +17,7 @@ class PropertyBase(BaseModel):
     fuente: str = Field(min_length=1, max_length=120)
     property_type: str | None = Field(default=None, max_length=64)
     url_original: str | None = Field(default=None, max_length=1024)
+    image_url: str | None = Field(default=None, max_length=1024)
 
 
 class PropertyCreate(PropertyBase):

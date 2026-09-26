@@ -14,6 +14,7 @@ export interface Property {
   fuente: string;
   property_type: string | null;
   url_original: string | null;
+  image_url: string | null;
   fecha_extraccion: string;
 }
 

@@ -63,3 +63,9 @@ html.dark body {
 .animate-fade-up {
   animation: fade-up 0.5s ease-out both;
 }
+
+/* Shimmer sobre el placeholder de imagen mientras next/image carga */
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

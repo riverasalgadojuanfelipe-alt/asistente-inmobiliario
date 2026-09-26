@@ -40,6 +40,14 @@ Campos por item que usamos (searchFast.data[i]):
     - address         str      -> direccion completa; usada como fallback de barrio
     - locations.location_main.name   -> ciudad/localidad
     - property_type.name / operation_type.name
+    - img             str      -> URL de la imagen principal/thumbnail (CDN
+                                  cdn2.infocasas.com.uy — Fincaraíz es de
+                                  InfoCasas). Está poblado en casi todos los
+                                  items; usamos SOLO esta como imagen destacada
+                                  para mantenerlo simple.
+    - images[]        list     -> galería completa [{id, image, tag}]; usada
+                                  como fallback si `img` viene null. El primer
+                                  elemento suele ser el mismo que `img`.
 
 Valores observados en `property_type.name` (Fincaraíz, ES):
     Apartamento, Casa, Casa Campestre, Finca, Lote, Local, Oficina,
@@ -240,6 +248,13 @@ def _to_property_row(
         prop_type_raw = ((item.get("property_type") or {}).get("name") or "").strip()
         property_type = prop_type_raw.lower() or None
 
+        image_url: str | None = item.get("img") or None
+        if not image_url:
+            gallery = item.get("images") or []
+            if gallery and isinstance(gallery, list):
+                first = gallery[0] or {}
+                image_url = first.get("image") or None
+
         return {
             "ciudad": ciudad,
             "tipo_operacion": tipo,
@@ -252,6 +267,7 @@ def _to_property_row(
             "fuente": "fincaraiz",
             "property_type": property_type,
             "url_original": url_original,
+            "image_url": image_url,
         }
     except (TypeError, ValueError):
         logger.exception("Item mal formado, se ignora: id=%s", item.get("id"))
@@ -287,6 +303,7 @@ def _upsert_batch(db: Session, rows: Iterable[dict]) -> tuple[int, int]:
             "property_type": stmt.excluded.property_type,
             "descripcion": stmt.excluded.descripcion,
             "barrio": stmt.excluded.barrio,
+            "image_url": stmt.excluded.image_url,
         },
     )
     db.execute(stmt)

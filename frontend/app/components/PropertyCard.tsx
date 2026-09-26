@@ -1,5 +1,6 @@
 import type { PropiedadRecomendada } from "@/lib/types";
 import { formatArea, formatCiudad, formatPrecio, titleCase } from "@/lib/format";
+import PropertyImage from "./PropertyImage";
 
 interface Props {
   item: PropiedadRecomendada;
@@ -21,7 +22,14 @@ export default function PropertyCard({ item, index }: Props) {
       "
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      <PlaceholderImage />
+      <PropertyImage
+        src={p.image_url}
+        alt={
+          p.barrio
+            ? `${titleCase(p.property_type) || "Propiedad"} en ${titleCase(p.barrio)}, ${formatCiudad(p.ciudad)}`
+            : `${titleCase(p.property_type) || "Propiedad"} en ${formatCiudad(p.ciudad)}`
+        }
+      />
 
       <div className="flex flex-col gap-4 p-6 md:p-7">
         {/* Categoría + ciudad */}
@@ -46,7 +54,7 @@ export default function PropertyCard({ item, index }: Props) {
         </div>
 
         {/* Specs */}
-        <dl className="grid grid-cols-3 gap-2 text-sm border-t border-hairline dark:border-white/10 pt-4">
+        <dl className="grid grid-cols-3 gap-x-4 text-sm border-t border-hairline dark:border-white/10 pt-4">
           <Spec label="Habitaciones" value={String(p.habitaciones)} />
           <Spec label="Baños" value={String(p.banos)} />
           <Spec label="Área" value={formatArea(p.area_m2)} />
@@ -98,8 +106,8 @@ export default function PropertyCard({ item, index }: Props) {
 
 function Spec({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col">
-      <dt className="text-[11px] uppercase tracking-[0.18em] text-graphite-mute">
+    <div className="flex flex-col min-w-0">
+      <dt className="text-[10px] uppercase tracking-[0.1em] text-graphite-mute whitespace-nowrap overflow-hidden text-ellipsis">
         {label}
       </dt>
       <dd className="text-graphite dark:text-cream font-medium">{value}</dd>
@@ -107,26 +115,3 @@ function Spec({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PlaceholderImage() {
-  return (
-    <div
-      className="
-        relative aspect-[16/10] w-full overflow-hidden
-        bg-gradient-to-br from-cream-warm to-hairline
-        dark:from-white/[0.06] dark:to-white/[0.02]
-        flex items-center justify-center
-      "
-      aria-hidden="true"
-    >
-      <svg viewBox="0 0 64 64" className="w-14 h-14 text-forest/40 dark:text-bronze/50">
-        <path
-          d="M8 30 L32 10 L56 30 V54 H40 V38 H24 V54 H8 Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.4"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
-}
