@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SAEnum, Integer, Numeric, String, Text, func
+from sqlalchemy import DateTime, Enum as SAEnum, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -21,6 +21,9 @@ class TipoOperacion(str, Enum):
 
 class Property(Base):
     __tablename__ = "propiedades"
+    __table_args__ = (
+        UniqueConstraint("url_original", name="uq_propiedades_url_original"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
@@ -44,6 +47,7 @@ class Property(Base):
     descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     fuente: Mapped[str] = mapped_column(String(120), nullable=False)
+    url_original: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     fecha_extraccion: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
