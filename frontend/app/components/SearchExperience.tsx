@@ -41,9 +41,13 @@ export default function SearchExperience() {
     } catch (err) {
       if (ctrl.signal.aborted) return;
       if (err instanceof ApiError) {
-        setErrorMsg(err.status === 503
-          ? "El asesor está momentáneamente ocupado. Intenta de nuevo en unos segundos."
-          : err.message);
+        if (err.status === 429) {
+          setErrorMsg(err.message);
+        } else if (err.status === 503) {
+          setErrorMsg("El asesor está momentáneamente ocupado. Intenta de nuevo en unos segundos.");
+        } else {
+          setErrorMsg(err.message);
+        }
       } else if (err instanceof Error) {
         setErrorMsg(
           "No pudimos conectarnos al asesor. Revisa que el backend esté corriendo en localhost:8000.",

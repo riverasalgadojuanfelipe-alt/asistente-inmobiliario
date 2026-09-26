@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     database_url: str
 
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-3.8-flash"
+    gemini_model: str = "gemini-flash-lite-latest"
 
     ciudades_soportadas: tuple[str, ...] = ("cali", "medellin", "bogota", "tulua")
 

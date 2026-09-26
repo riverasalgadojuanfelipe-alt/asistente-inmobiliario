@@ -1,21 +1,18 @@
 """
-Búsqueda inteligente sobre la BD de propiedades usando Gemini.
+Búsqueda inteligente sobre la BD de propiedades — UN solo llamado a Gemini.
 
-Flujo:
-  1) `extraer_filtros(query)` — Gemini convierte texto libre en filtros
-     estructurados + keywords de estilo de vida.
-  2) `list_properties(filtros)` — trae hasta 15 candidatos desde Postgres.
-  3) `recomendar(query, candidatos, keywords)` — Gemini elige 3-5 y explica
-     por qué encajan, en español natural.
+Flujo (optimizado para cuota gratuita de Gemini):
+  1) `query_parser.parse_query(query)` — extrae filtros estructurados
+     (ciudad, tipo_operacion, rangos, mínimos) con REGLAS EN PYTHON, sin LLM.
+  2) `property_service.list_properties(filtros)` — trae hasta 15 candidatos.
+  3) `recomendar(query, candidatos)` — UNA sola llamada a Gemini con la
+     consulta original + los candidatos ya filtrados. El modelo decide
+     3-5 y explica cada una en español natural, leyendo directamente los
+     matices de estilo de vida del texto libre del usuario.
 
-Diseño:
-  - Se usa `response_schema` de la SDK para forzar salida JSON parseable en
-    ambas llamadas. Además, se hace un reintento si el modelo devuelve algo
-    que no encaja con el schema.
-  - Los IDs de propiedad se validan contra los candidatos que le enviamos, por
-    si el modelo inventa un id.
-  - Sin `GEMINI_API_KEY` en el entorno, el módulo falla explícitamente al
-    construir el cliente.
+Cambio vs. versión anterior:
+  Antes: 2 llamadas a Gemini por búsqueda (extractor + advisor).
+  Ahora: 1 llamada. Reduce a la mitad el consumo del free tier.
 """
 
 from __future__ import annotations
@@ -37,6 +34,7 @@ from app.core.config import get_settings
 from app.models.property import Ciudad, Property, TipoOperacion
 from app.schemas.property import PropertyFilter, PropertyRead
 from app.services import property_service
+from app.services.query_parser import ParsedFilters, parse_query
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +44,7 @@ MAX_RECOMENDACIONES = 5
 
 
 class ExtractedFilters(BaseModel):
-    """Salida estructurada del primer paso (extracción de filtros)."""
+    """Filtros extraídos (por reglas) — se devuelve al cliente para UI/debug."""
 
     ciudad: Ciudad | None = None
     tipo_operacion: TipoOperacion | None = None
@@ -54,12 +52,9 @@ class ExtractedFilters(BaseModel):
     precio_max: float | None = Field(default=None, ge=0)
     habitaciones_min: int | None = Field(default=None, ge=0)
     area_min: float | None = Field(default=None, ge=0)
-    lifestyle_keywords: list[str] = Field(default_factory=list)
 
 
 class Recomendacion(BaseModel):
-    """Salida estructurada del segundo paso (recomendación por propiedad)."""
-
     property_id: int
     razon: str
 
@@ -89,60 +84,8 @@ class AISearchError(RuntimeError):
 def _get_client() -> genai.Client:
     settings = get_settings()
     if not settings.gemini_api_key:
-        raise AISearchError(
-            "GEMINI_API_KEY no configurada. Añádela al .env del backend."
-        )
+        raise AISearchError("GEMINI_API_KEY no configurada. Añádela al .env del backend.")
     return genai.Client(api_key=settings.gemini_api_key)
-
-
-_EXTRACTION_PROMPT = """\
-Eres un asistente inmobiliario para Colombia. Tu tarea es analizar la consulta \
-del usuario y extraer filtros de búsqueda estructurados.
-
-Reglas:
-- ciudad: solo una de {"cali","medellin","bogota","tulua"} o null si no se \
-menciona ciudad soportada.
-- tipo_operacion: "venta" si el usuario quiere comprar; "arriendo" si quiere \
-alquilar/arrendar/rentar; null si no queda claro.
-- precio_min / precio_max: en pesos colombianos (COP). Convierte expresiones \
-como "800 millones" -> 800000000, "2 mil millones" -> 2000000000, "1.5M" -> \
-1500000. Si dice "máximo X" usa precio_max=X; "mínimo X" usa precio_min=X. \
-Si no hay presupuesto, deja ambos en null.
-- habitaciones_min: número mínimo de habitaciones si el usuario lo especifica.
-- area_min: metros cuadrados mínimos si se especifica.
-- lifestyle_keywords: lista corta (máx 8) de palabras/frases del usuario que \
-describen ESTILO DE VIDA o CARACTERÍSTICAS deseadas (ej: "tranquilo", \
-"cerca de parques", "buena luz", "amoblado", "seguro", "con vista"). \
-No incluyas cifras, ciudad ni tipo de operación aquí.
-
-Consulta del usuario:
-\"\"\"{query}\"\"\"
-
-Devuelve SOLO un objeto JSON con esos campos. Si un campo no aplica, usa null \
-(o lista vacía para lifestyle_keywords).
-"""
-
-
-_ADVISOR_SYSTEM_PROMPT = """\
-Eres un asesor inmobiliario colombiano, honesto y con criterio. Recibes:
-  1) La consulta original del usuario.
-  2) Palabras clave de estilo de vida que priorizó.
-  3) Una lista de propiedades candidatas con sus datos (id, ciudad, barrio, \
-precio, habitaciones, baños, área, descripción).
-
-Tu tarea:
-- Elegir entre {min_reco} y {max_reco} propiedades que MEJOR encajen con lo \
-que el usuario pidió.
-- Para cada una, escribir en 1-2 frases en español natural POR QUÉ encaja, \
-citando pistas concretas de la descripción o el barrio (no inventes datos).
-- Si una descripción no soporta un keyword del usuario (ej: piden "cerca de \
-parques" y la descripción no lo menciona), no lo afirmes; sé honesto y \
-mencionalo como algo a verificar.
-- No repitas la propiedad. No inventes ids. Usa solo los ids que se te dan.
-
-Devuelve un JSON con la forma:
-{{ "recomendaciones": [{{"property_id": <int>, "razon": "<texto>"}}] }}
-"""
 
 
 def _generate_with_retry(
@@ -151,7 +94,7 @@ def _generate_with_retry(
     config: genai_types.GenerateContentConfig,
     max_attempts: int = 3,
 ) -> Any:
-    """Llama a generate_content con backoff frente a 5xx/UNAVAILABLE."""
+    """generate_content con backoff frente a 5xx / UNAVAILABLE."""
     client = _get_client()
     model = get_settings().gemini_model
     last: Exception | None = None
@@ -163,15 +106,16 @@ def _generate_with_retry(
         except genai_errors.ServerError as exc:
             last = exc
             wait = 1.5 * intento
-            logger.warning("Gemini 5xx (%s), intento %s/%s — espero %.1fs",
-                           getattr(exc, "code", "?"), intento, max_attempts, wait)
+            logger.warning(
+                "Gemini 5xx (%s), intento %s/%s — espero %.1fs",
+                getattr(exc, "code", "?"), intento, max_attempts, wait,
+            )
             time.sleep(wait)
     assert last is not None
     raise last
 
 
 def _extract_json_from_response(resp: Any) -> dict:
-    """Extrae el dict del response de Gemini, tolerando texto con ruido."""
     parsed = getattr(resp, "parsed", None)
     if parsed is not None:
         if isinstance(parsed, BaseModel):
@@ -181,37 +125,12 @@ def _extract_json_from_response(resp: Any) -> dict:
     text = (resp.text or "").strip()
     if not text:
         raise ValueError("Respuesta vacía de Gemini")
-    # Los modelos a veces envuelven en ```json ... ```
     if text.startswith("```"):
         text = text.strip("`")
         if text.lower().startswith("json"):
             text = text[4:]
         text = text.strip()
     return json.loads(text)
-
-
-def extraer_filtros(query: str) -> ExtractedFilters:
-    """Llama a Gemini para convertir texto libre en filtros estructurados."""
-    prompt = _EXTRACTION_PROMPT.replace("{query}", query)
-    config = genai_types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=ExtractedFilters,
-        temperature=0.0,
-    )
-
-    ultimo_error: Exception | None = None
-    for intento in (1, 2):
-        try:
-            resp = _generate_with_retry(contents=prompt, config=config)
-            data = _extract_json_from_response(resp)
-            return ExtractedFilters.model_validate(data)
-        except (ValidationError, ValueError, json.JSONDecodeError) as exc:
-            ultimo_error = exc
-            logger.warning("Gemini extract_filtros intento %s falló: %s", intento, exc)
-
-    raise AISearchError(
-        f"Gemini no devolvió filtros parseables tras 2 intentos: {ultimo_error}"
-    )
 
 
 def _property_to_prompt_dict(p: Property) -> dict:
@@ -231,28 +150,65 @@ def _property_to_prompt_dict(p: Property) -> dict:
     }
 
 
-def recomendar(
-    query: str,
-    candidatos: list[Property],
-    keywords: list[str],
-) -> list[Recomendacion]:
-    """Llama a Gemini para elegir 3-5 propiedades y explicar el por qué."""
+_ADVISOR_SYSTEM_PROMPT = """\
+Eres un asesor inmobiliario colombiano, honesto y con criterio. Recibes:
+  1) La consulta ORIGINAL del usuario (léela completa: incluye pistas de
+     estilo de vida, preferencias, contexto).
+  2) Una lista de propiedades candidatas ya filtradas por criterios básicos
+     (ciudad, precio, habitaciones, área) con sus datos.
+
+Tu tarea:
+- Elegir entre {min_reco} y {max_reco} propiedades que MEJOR encajen con lo
+  que el usuario pidió, prestando atención especial a los matices de estilo
+  de vida que menciona (tranquilidad, luz, cercanía a algo, moderno, familiar,
+  vista, seguridad, amoblado, etc.).
+- Para cada una, escribir en 1-2 frases en español natural POR QUÉ encaja,
+  citando pistas concretas de la descripción o el barrio (no inventes datos).
+- Si una descripción no soporta un matiz del usuario (p.ej. piden "cerca de
+  parques" y la descripción no lo menciona), sé honesto: menciónalo como
+  algo a verificar en la visita, no lo afirmes.
+- No repitas propiedades. No inventes ids. Usa SOLO los ids que se te dan.
+
+Devuelve un JSON con la forma exacta:
+{{ "recomendaciones": [{{"property_id": <int>, "razon": "<texto>"}}] }}
+"""
+
+
+def _filters_from_parsed(p: ParsedFilters) -> PropertyFilter:
+    return PropertyFilter(
+        ciudad=p.ciudad,
+        tipo_operacion=p.tipo_operacion,
+        precio_min=p.precio_min,
+        precio_max=p.precio_max,
+        habitaciones_min=p.habitaciones_min,
+        area_min=p.area_min,
+    )
+
+
+def _parsed_to_public(p: ParsedFilters) -> ExtractedFilters:
+    return ExtractedFilters(
+        ciudad=p.ciudad,
+        tipo_operacion=p.tipo_operacion,
+        precio_min=p.precio_min,
+        precio_max=p.precio_max,
+        habitaciones_min=p.habitaciones_min,
+        area_min=p.area_min,
+    )
+
+
+def recomendar(query: str, candidatos: list[Property]) -> list[Recomendacion]:
+    """Única llamada a Gemini: recibe consulta original + candidatos → recos."""
     if not candidatos:
         return []
 
     payload = {
         "consulta_original": query,
-        "estilo_de_vida_deseado": keywords,
         "candidatos": [_property_to_prompt_dict(p) for p in candidatos],
     }
-
     system = _ADVISOR_SYSTEM_PROMPT.format(
         min_reco=MIN_RECOMENDACIONES, max_reco=MAX_RECOMENDACIONES
     )
-    contents = (
-        "DATOS_DE_ENTRADA:\n"
-        + json.dumps(payload, ensure_ascii=False, indent=2)
-    )
+    contents = "DATOS_DE_ENTRADA:\n" + json.dumps(payload, ensure_ascii=False, indent=2)
 
     config = genai_types.GenerateContentConfig(
         system_instruction=system,
@@ -281,33 +237,25 @@ def recomendar(
     )
 
 
-def _filters_desde_extraidos(f: ExtractedFilters) -> PropertyFilter:
-    return PropertyFilter(
-        ciudad=f.ciudad,
-        tipo_operacion=f.tipo_operacion,
-        precio_min=f.precio_min,
-        precio_max=f.precio_max,
-        habitaciones_min=f.habitaciones_min,
-        area_min=f.area_min,
-    )
-
-
 def buscar_inteligente(db: Session, query: str) -> BuscarResponse:
     """Punto de entrada del endpoint POST /buscar."""
     query = query.strip()
     if not query:
         raise AISearchError("La consulta está vacía.")
 
-    filtros = extraer_filtros(query)
-    db_filter = _filters_desde_extraidos(filtros)
+    # Paso 1: extracción por reglas (Python puro, sin cuota de Gemini)
+    parsed = parse_query(query)
+    filtros_pub = _parsed_to_public(parsed)
+
+    # Paso 2: consulta a la BD
     candidatos = property_service.list_properties(
-        db, db_filter, limit=MAX_CANDIDATOS, offset=0
+        db, _filters_from_parsed(parsed), limit=MAX_CANDIDATOS, offset=0
     )
 
     if not candidatos:
         return BuscarResponse(
             query=query,
-            filtros_extraidos=filtros,
+            filtros_extraidos=filtros_pub,
             total_candidatos=0,
             recomendaciones=[],
             mensaje=(
@@ -317,7 +265,8 @@ def buscar_inteligente(db: Session, query: str) -> BuscarResponse:
             ),
         )
 
-    recos = recomendar(query, candidatos, filtros.lifestyle_keywords)
+    # Paso 3: UNA llamada a Gemini con el texto original + candidatos
+    recos = recomendar(query, candidatos)
     by_id = {p.id: p for p in candidatos}
     salida = [
         PropiedadRecomendada(
@@ -330,7 +279,7 @@ def buscar_inteligente(db: Session, query: str) -> BuscarResponse:
 
     return BuscarResponse(
         query=query,
-        filtros_extraidos=filtros,
+        filtros_extraidos=filtros_pub,
         total_candidatos=len(candidatos),
         recomendaciones=salida,
     )
