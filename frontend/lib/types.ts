@@ -38,6 +38,7 @@ export interface BuscarResponse {
   query: string;
   filtros_extraidos: ExtractedFilters;
   total_candidatos: number;
+  muestra_evaluada: number;
   recomendaciones: PropiedadRecomendada[];
   mensaje: string | null;
 }

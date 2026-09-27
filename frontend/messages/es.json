@@ -39,7 +39,8 @@
     "titleForSale": "{count, plural, one {# propiedad} other {# propiedades}} para <em>compra</em>",
     "titleGeneric": "{count, plural, one {# propiedad} other {# propiedades}} <em>para ti</em>",
     "inCity": "en <em>{city}</em>",
-    "subtitle": "Elegidas de {count, plural, one {# candidato} other {# candidatos}} que cumplen tus filtros."
+    "subtitle": "Elegidas de {count, plural, one {# candidato} other {# candidatos}} que cumplen tus filtros.",
+    "subtitleSampled": "Elegidas tras revisar una muestra de {sample} propiedades, tomada al azar entre las {pool} que cumplen tus filtros."
   },
   "card": {
     "categoryFallback": "Residencial",

@@ -11,7 +11,7 @@ interface Props {
 
 export default function Results({ data }: Props) {
   const t = useTranslations("results");
-  const { recomendaciones, filtros_extraidos, total_candidatos } = data;
+  const { recomendaciones, filtros_extraidos, total_candidatos, muestra_evaluada } = data;
   const ciudad = filtros_extraidos.ciudad
     ? formatCiudad(filtros_extraidos.ciudad)
     : null;
@@ -47,7 +47,12 @@ export default function Results({ data }: Props) {
           .
         </h2>
         <p className="mt-3 text-sm text-graphite-mute">
-          {t("subtitle", { count: total_candidatos })}
+          {muestra_evaluada > 0 && total_candidatos > muestra_evaluada
+            ? t("subtitleSampled", {
+                sample: muestra_evaluada,
+                pool: total_candidatos,
+              })
+            : t("subtitle", { count: total_candidatos })}
         </p>
       </header>
 

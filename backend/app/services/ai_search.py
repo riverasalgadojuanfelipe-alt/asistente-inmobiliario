@@ -38,9 +38,17 @@ from app.services.query_parser import ParsedFilters, parse_query
 
 logger = logging.getLogger(__name__)
 
-MAX_CANDIDATOS = 15
+MAX_CANDIDATOS = 40
+# Chars maximos de la descripcion enviada a Gemini. Con 40 candidatos y 400
+# chars el prompt queda ~9-12k tokens (bien dentro del free tier de Flash Lite,
+# que da 1M input tokens/minuto y 1500 requests/dia).
+MAX_DESCRIPCION_CHARS = 400
 MIN_RECOMENDACIONES = 3
 MAX_RECOMENDACIONES = 5
+
+# Aproximacion barata: espaniol/ingles pesa ~4 chars por token en el tokenizer
+# de Gemini. Sirve solo para logging/observabilidad, no para cuota.
+_CHARS_PER_TOKEN_APPROX = 4
 
 Idioma = Literal["es", "en"]
 
@@ -78,7 +86,12 @@ class PropiedadRecomendada(BaseModel):
 class BuscarResponse(BaseModel):
     query: str
     filtros_extraidos: ExtractedFilters
+    # total_candidatos = tamano del pool que matchea los filtros en BD.
+    # muestra_evaluada = subset que efectivamente vio Gemini (min(pool, MAX_CANDIDATOS)).
+    # El frontend usa ambos para explicar honestamente que se evaluo una muestra
+    # aleatoria cuando el pool excede el tope.
     total_candidatos: int
+    muestra_evaluada: int = 0
     recomendaciones: list[PropiedadRecomendada]
     mensaje: str | None = None
 
@@ -153,7 +166,7 @@ def _property_to_prompt_dict(p: Property) -> dict:
         "habitaciones": p.habitaciones,
         "banos": p.banos,
         "area_m2": float(p.area_m2) if isinstance(p.area_m2, Decimal) else p.area_m2,
-        "descripcion": (p.descripcion or "")[:600],
+        "descripcion": (p.descripcion or "")[:MAX_DESCRIPCION_CHARS],
     }
 
 
@@ -225,6 +238,12 @@ def recomendar(
         language=_LANGUAGE_NAME[idioma],
     )
     contents = "DATOS_DE_ENTRADA:\n" + json.dumps(payload, ensure_ascii=False, indent=2)
+    logger.info(
+        "Gemini prompt: %d candidatos, %d chars (~%d tokens)",
+        len(candidatos),
+        len(contents),
+        len(contents) // _CHARS_PER_TOKEN_APPROX,
+    )
 
     config = genai_types.GenerateContentConfig(
         system_instruction=system,
@@ -265,9 +284,14 @@ def buscar_inteligente(
     parsed = parse_query(query)
     filtros_pub = _parsed_to_public(parsed)
 
-    # Paso 2: consulta a la BD
+    # Paso 2: consulta a la BD. `random_order=True` toma una muestra aleatoria
+    # del set filtrado en vez de siempre los mismos "top 40 mas recientes" —
+    # asi mezcla naturalmente entre fuentes (Fincaraiz / Metrocuadrado) y da
+    # variedad en busquedas similares repetidas.
+    filtros = _filters_from_parsed(parsed)
+    pool_total = property_service.count_properties(db, filtros)
     candidatos = property_service.list_properties(
-        db, _filters_from_parsed(parsed), limit=MAX_CANDIDATOS, offset=0
+        db, filtros, limit=MAX_CANDIDATOS, random_order=True,
     )
 
     if not candidatos:
@@ -305,6 +329,7 @@ def buscar_inteligente(
     return BuscarResponse(
         query=query,
         filtros_extraidos=filtros_pub,
-        total_candidatos=len(candidatos),
+        total_candidatos=pool_total,
+        muestra_evaluada=len(candidatos),
         recomendaciones=salida,
     )
