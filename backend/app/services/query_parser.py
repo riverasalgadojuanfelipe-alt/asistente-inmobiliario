@@ -12,6 +12,10 @@ Filosofía:
   "mínimo", "desde", "N habitaciones", "N m2").
 - Soporta español colombiano común: "800 millones", "2 mil millones", "1.5M",
   "3M al mes", "60 m2".
+- Heurística de tipo_operacion: si el usuario NO menciona explícitamente
+  "comprar"/"arrendar", pero el precio supera 50M COP, inferimos venta
+  (nadie paga 50M+ mensuales por un arriendo; arriendos residenciales en
+  Colombia rara vez pasan de 20M/mes).
 """
 
 from __future__ import annotations
@@ -20,6 +24,9 @@ import re
 from dataclasses import dataclass
 
 from app.models.property import Ciudad, TipoOperacion
+
+# Umbral en COP por encima del cual un precio implica compra, no arriendo.
+_VENTA_INFERENCE_THRESHOLD_COP = 50_000_000
 
 
 @dataclass(slots=True)
@@ -210,13 +217,33 @@ def _extract_area_min(q: str) -> float | None:
 # ---------------------------------------------------------------------------
 # API pública
 # ---------------------------------------------------------------------------
+def _infer_tipo_from_price(
+    tipo: TipoOperacion | None,
+    precio_min: float | None,
+    precio_max: float | None,
+) -> TipoOperacion | None:
+    """
+    Si el usuario no dijo explícitamente 'comprar' o 'arrendar', pero el
+    precio supera el umbral de venta (~50M COP), asumimos venta.
+    Nunca sobreescribimos una intención explícita (arriendo/venta ya detectado).
+    """
+    if tipo is not None:
+        return tipo
+    biggest = max(precio_min or 0, precio_max or 0)
+    if biggest >= _VENTA_INFERENCE_THRESHOLD_COP:
+        return TipoOperacion.VENTA
+    return None
+
+
 def parse_query(query: str) -> ParsedFilters:
     """Convierte texto libre en filtros estructurados sin usar LLM."""
     q = query.strip()
     precio_min, precio_max = _extract_prices(q)
+    tipo = _extract_tipo_operacion(q)
+    tipo = _infer_tipo_from_price(tipo, precio_min, precio_max)
     return ParsedFilters(
         ciudad=_extract_ciudad(q),
-        tipo_operacion=_extract_tipo_operacion(q),
+        tipo_operacion=tipo,
         precio_min=precio_min,
         precio_max=precio_max,
         habitaciones_min=_extract_habitaciones_min(q),

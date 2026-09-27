@@ -2,6 +2,14 @@
 
 Asistente inmobiliario inteligente para Colombia (Cali, Medellín, Bogotá y Tuluá). Soporta búsquedas de **compra** y **arriendo**.
 
+## Producción
+
+- **App:** https://www.homev.casa (apex https://homev.casa redirige a www)
+- **URL de Vercel:** https://asistente-inmobiliario-snowy.vercel.app
+- **API:** https://asistente-inmobiliario-api.onrender.com
+
+Guía completa de despliegue en [`DEPLOY.md`](./DEPLOY.md).
+
 ## Estructura
 
 ```

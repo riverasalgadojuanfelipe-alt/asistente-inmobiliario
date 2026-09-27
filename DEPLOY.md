@@ -1,11 +1,16 @@
 # Despliegue — Guía paso a paso (100% capa gratuita)
 
-Este proyecto se despliega en **dos plataformas**:
-- **Render** → backend FastAPI (`backend/`)
-- **Vercel** → frontend Next.js (`frontend/`)
-- **Supabase** → base de datos Postgres (ya la tienes)
+## URLs de producción
+- **Frontend (dominio propio):** https://www.homev.casa (apex https://homev.casa redirige 308 → www)
+- **Frontend (URL de Vercel):** https://asistente-inmobiliario-snowy.vercel.app
+- **Backend API:** https://asistente-inmobiliario-api.onrender.com
 
-Todo se mantiene en el free tier. Caveats importantes al final.
+Este proyecto se despliega en **tres plataformas**:
+- **Render** → backend FastAPI (`backend/`)
+- **Vercel** → frontend Next.js (`frontend/`), con dominio propio `homev.casa` comprado en Namecheap
+- **Supabase** → base de datos Postgres
+
+Todo se mantiene en el free tier (dominio en Namecheap sí es pago, ~$10/año). Caveats importantes al final.
 
 ---
 
@@ -67,21 +72,33 @@ Dashboard → tu servicio → **Environment**:
      (sin `/api/v1`, sin trailing slash — el código lo agrega).
 4. Click **Deploy**.
 
-Al minuto tenés una URL tipo `https://asistente-inmobiliario.vercel.app` (o `-git-main-<user>.vercel.app` para previews). Abrí y probá.
+Al minuto tenés una URL tipo `https://<proyecto>.vercel.app`. En este deploy la URL asignada fue `https://asistente-inmobiliario-snowy.vercel.app`.
+
+### 2.3 Dominio propio (opcional)
+Si conectás un dominio comprado aparte (ej. Namecheap):
+1. Vercel → tu proyecto → **Settings → Domains → Add** → escribí `homev.casa` y `www.homev.casa`.
+2. Vercel te dice qué registros DNS crear. En Namecheap → **Advanced DNS**:
+   - `A` host `@` → `216.198.79.1` (IP que da Vercel).
+   - `CNAME` host `www` → `<hash>.vercel-dns-017.com` (el CNAME exacto lo da Vercel).
+3. Esperá 5-30 min a que propague. Vercel muestra "Valid Configuration" cuando está listo. El apex redirige 308 al `www` por defecto.
 
 ---
 
 ## 3. Cerrar CORS en el backend (recomendado tras el primer deploy)
 Una vez sepas tu URL de Vercel, volvé a Render → tu servicio → **Environment**:
 
-1. Editá `CORS_ORIGINS` de `*` a algo como:
+1. Editá `CORS_ORIGINS` de `*` a la lista de dominios finales, separados por coma:
    ```
-   https://asistente-inmobiliario.vercel.app,https://asistente-inmobiliario-git-main-<user>.vercel.app
+   https://asistente-inmobiliario-snowy.vercel.app,https://www.homev.casa,https://homev.casa
    ```
-   (Incluí también el dominio de previews de PR si querés que funcionen ahí.)
+   Incluí:
+   - El dominio principal (`www.homev.casa`).
+   - El apex (`homev.casa`) aunque redirija — algunos navegadores mandan el preflight desde el origen antes del redirect.
+   - La URL de Vercel original — sirve de fallback si algún día el DNS del dominio falla.
+   - Opcional: dominios de previews (`https://<proyecto>-git-<branch>-<user>.vercel.app`) si querés que las ramas también consuman el API.
 2. Guardá — Render reinicia solo (~30s).
 
-Con esto, solo tu frontend puede llamar al backend.
+El código ya soporta lista arbitraria de orígenes (splittea por coma y limpia espacios). Con esto, solo tus dominios pueden llamar al backend.
 
 ---
 
