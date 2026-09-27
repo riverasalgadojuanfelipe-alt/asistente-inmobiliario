@@ -12,10 +12,15 @@ app = FastAPI(
     version="0.1.0",
 )
 
+_cors_origins = settings.cors_origins_list
+_allow_wildcard = _cors_origins == ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    # Con "*" el navegador rechaza credenciales; solo se habilitan con
+    # una whitelist explícita.
+    allow_credentials=not _allow_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )

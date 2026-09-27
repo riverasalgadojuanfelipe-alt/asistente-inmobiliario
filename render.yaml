@@ -1,0 +1,47 @@
+# Render Blueprint para el backend FastAPI.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Este archivo declara UN servicio web Python en el plan gratuito.
+# Nota sobre el free tier de Render:
+#   - Se apaga tras 15 min sin tráfico; el primer request tras el sleep
+#     tarda ~30-60s en despertar (cold start).
+#   - 512MB RAM, límite mensual de horas — suficiente para demo.
+
+services:
+  - type: web
+    name: asistente-inmobiliario-api
+    runtime: python
+    plan: free
+    region: oregon        # más cercano a Colombia dentro de los gratuitos
+    rootDir: backend      # el código vive en /backend del repo
+
+    # Instala deps. Alembic corre en startCommand para no bloquear el build
+    # si Supabase está pausada; así al levantarse el web service la despierta.
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+
+    # Aplica migraciones (idempotente) y arranca uvicorn en el $PORT que
+    # inyecta Render. --host 0.0.0.0 es necesario para exponer fuera del contenedor.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /health
+
+    envVars:
+      # Fijamos Python 3.12 (nuestro código usa sintaxis 3.10+).
+      - key: PYTHON_VERSION
+        value: 3.12.7
+
+      # Modelo Gemini por defecto (se puede sobreescribir en el dashboard).
+      - key: GEMINI_MODEL
+        value: gemini-flash-lite-latest
+
+      # CORS: inicialmente abierto. Cambiar en el dashboard a la URL de Vercel
+      # cuando el frontend esté desplegado (ej: https://<app>.vercel.app).
+      - key: CORS_ORIGINS
+        value: "*"
+
+      # Secretos: NUNCA en el YAML. `sync: false` obliga a que los pongas
+      # manualmente en el dashboard de Render → Settings → Environment.
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
