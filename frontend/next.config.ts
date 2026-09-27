@@ -28,6 +28,12 @@ const nextConfig: NextConfig = {
         hostname: "s3.amazonaws.com",
         pathname: "/imagenesprof.fincaraiz.com.co/**",
       },
+      // Metrocuadrado sirve imágenes desde su CDN dedicado.
+      {
+        protocol: "https",
+        hostname: "multimedia.metrocuadrado.com",
+        pathname: "/**",
+      },
     ],
   },
 };

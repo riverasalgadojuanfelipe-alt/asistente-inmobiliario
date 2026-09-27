@@ -12,7 +12,7 @@ Filtro de tipos de propiedad (default: solo residencial apartamento+casa):
     python run_scraper.py ... --tipos-propiedad todos    # sin filtrar
 
 Fuentes soportadas:
-    --fuente fincaraiz  (default)
+    --fuente fincaraiz | metrocuadrado | todas   (default: fincaraiz)
 """
 
 from __future__ import annotations
@@ -23,11 +23,16 @@ import sys
 
 from app.core.database import SessionLocal
 from app.models.property import Ciudad, TipoOperacion
-from app.services.scraping import scrape_fincaraiz
+from app.services.scraping import scrape_fincaraiz, scrape_metrocuadrado
 from app.services.scraping.fincaraiz_scraper import DEFAULT_ALLOWED_PROPERTY_TYPES
 
 CIUDADES_CLI = {c.value: c for c in Ciudad}
 TIPOS_CLI = {t.value: t for t in TipoOperacion}
+
+SCRAPERS = {
+    "fincaraiz": scrape_fincaraiz,
+    "metrocuadrado": scrape_metrocuadrado,
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,8 +58,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--fuente",
         default="fincaraiz",
-        choices=["fincaraiz"],
-        help="Fuente de datos (por ahora solo fincaraiz)",
+        choices=[*SCRAPERS.keys(), "todas"],
+        help="Fuente de datos (fincaraiz, metrocuadrado, o todas)",
     )
     parser.add_argument(
         "--tipos-propiedad",
@@ -100,30 +105,33 @@ def main() -> int:
     tipos = _resolver_tipos(args.tipo)
     allowed = _parse_tipos_propiedad(args.tipos_propiedad)
     filtro_txt = "todos" if allowed is None else ",".join(sorted(allowed))
+    fuentes = list(SCRAPERS.keys()) if args.fuente == "todas" else [args.fuente]
 
     total_ins = 0
     total_dup = 0
     total_filt = 0
     with SessionLocal() as db:
-        for ciudad in ciudades:
-            for tipo in tipos:
-                print(
-                    f"\n>>> Scraping {args.fuente} | {ciudad.value} | {tipo.value} "
-                    f"| {args.paginas} páginas | tipos={filtro_txt}"
-                )
-                stats = scrape_fincaraiz(
-                    db, ciudad, tipo,
-                    paginas=args.paginas,
-                    allowed_property_types=allowed,
-                )
-                print(
-                    f"    ok={stats.paginas_ok} fail={stats.paginas_fallidas} "
-                    f"vistos={stats.items_vistos} nuevos={stats.items_insertados} "
-                    f"actualizados={stats.items_duplicados} filtrados={stats.items_filtrados}"
-                )
-                total_ins += stats.items_insertados
-                total_dup += stats.items_duplicados
-                total_filt += stats.items_filtrados
+        for fuente in fuentes:
+            scrape_fn = SCRAPERS[fuente]
+            for ciudad in ciudades:
+                for tipo in tipos:
+                    print(
+                        f"\n>>> Scraping {fuente} | {ciudad.value} | {tipo.value} "
+                        f"| {args.paginas} páginas | tipos={filtro_txt}"
+                    )
+                    stats = scrape_fn(
+                        db, ciudad, tipo,
+                        paginas=args.paginas,
+                        allowed_property_types=allowed,
+                    )
+                    print(
+                        f"    ok={stats.paginas_ok} fail={stats.paginas_fallidas} "
+                        f"vistos={stats.items_vistos} nuevos={stats.items_insertados} "
+                        f"actualizados={stats.items_duplicados} filtrados={stats.items_filtrados}"
+                    )
+                    total_ins += stats.items_insertados
+                    total_dup += stats.items_duplicados
+                    total_filt += stats.items_filtrados
 
     print(
         f"\n=== TOTAL nuevos={total_ins} actualizados={total_dup} "
