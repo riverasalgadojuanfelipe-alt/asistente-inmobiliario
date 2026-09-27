@@ -1,6 +1,6 @@
-# Asistente Inmobiliario
+# Homev
 
-Asistente inmobiliario inteligente para Colombia (Cali, Medellín, Bogotá y Tuluá). Soporta búsquedas de **compra** y **arriendo**.
+Asistente inmobiliario inteligente para Colombia (Cali, Medellín, Bogotá y Tuluá). Búsqueda en lenguaje natural con recomendaciones justificadas por IA. Soporta operaciones de **compra** y **arriendo**.
 
 ## Producción
 

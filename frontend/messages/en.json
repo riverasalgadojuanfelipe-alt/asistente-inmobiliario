@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "title": "Real Estate Assistant · Colombia",
+    "title": "Homev — Find your next home in Colombia",
     "description": "Find your next home in Cali, Medellín, Bogotá or Tuluá with a virtual advisor. Natural-language search with justified recommendations."
   },
   "hero": {
@@ -21,7 +21,7 @@
     "hint": "Write as you would speak to an advisor. Enter to send · Shift+Enter for a new line.",
     "srLabel": "Natural-language query",
     "back": "Back",
-    "brand": "Real Estate Assistant"
+    "brand": "Homev"
   },
   "loading": {
     "messages": [
@@ -71,7 +71,7 @@
   },
   "footer": {
     "disclaimer": "Data comes from public third-party sources such as Fincaraíz and may be out of date. Verify price, availability and details directly with the seller or landlord. We don't take part in transactions nor guarantee the accuracy of what's shown.",
-    "copyright": "© {year} Real Estate Assistant · Colombia",
+    "copyright": "© {year} Homev · Colombia",
     "cities": "Cali · Medellín · Bogotá · Tuluá"
   },
   "locale": {

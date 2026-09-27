@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "title": "Asistente Inmobiliario · Colombia",
+    "title": "Homev — Encuentra tu próximo hogar en Colombia",
     "description": "Encuentra tu próximo hogar en Cali, Medellín, Bogotá o Tuluá con la ayuda de un asesor virtual. Búsqueda en lenguaje natural, recomendaciones justificadas."
   },
   "hero": {
@@ -21,7 +21,7 @@
     "hint": "Escribe como le hablarías a un asesor. Enter para enviar · Shift+Enter para nueva línea.",
     "srLabel": "Consulta en lenguaje natural",
     "back": "Volver",
-    "brand": "Asistente Inmobiliario"
+    "brand": "Homev"
   },
   "loading": {
     "messages": [
@@ -71,7 +71,7 @@
   },
   "footer": {
     "disclaimer": "La información proviene de fuentes públicas como Fincaraíz y puede estar desactualizada. Verifica precio, disponibilidad y detalles directamente con el vendedor o arrendador. No participamos en las transacciones ni garantizamos la exactitud de lo mostrado.",
-    "copyright": "© {year} Asistente Inmobiliario · Colombia",
+    "copyright": "© {year} Homev · Colombia",
     "cities": "Cali · Medellín · Bogotá · Tuluá"
   },
   "locale": {

@@ -12,7 +12,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "Asistente Inmobiliario"
+    app_name: str = "Homev"
     app_env: str = "development"
     api_v1_prefix: str = "/api/v1"
     debug: bool = True
