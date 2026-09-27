@@ -42,6 +42,10 @@
     "subtitle": "Elegidas de {count, plural, one {# candidato} other {# candidatos}} que cumplen tus filtros.",
     "subtitleSampled": "Elegidas tras revisar una muestra de {sample} propiedades, tomada al azar entre las {pool} que cumplen tus filtros."
   },
+  "map": {
+    "eyebrow": "Ubicación en el mapa",
+    "missing": "{count, plural, one {# sin ubicación exacta} other {# sin ubicación exacta}}"
+  },
   "card": {
     "categoryFallback": "Residencial",
     "locationUnknown": "Ubicación reservada",

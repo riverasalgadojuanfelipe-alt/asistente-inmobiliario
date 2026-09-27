@@ -66,6 +66,7 @@ from app.models.property import Ciudad, Property, TipoOperacion
 from app.services.scraping.fincaraiz_scraper import (
     DEFAULT_ALLOWED_PROPERTY_TYPES,
     ScrapeStats,
+    _parse_coords,
 )
 
 logger = logging.getLogger(__name__)
@@ -184,6 +185,11 @@ def _to_property_row(
 
         image_url = item.get("imageLink") or None
 
+        # Coordenadas: `localizacion` viene como floats. El sentinel (0, 0)
+        # se filtra en _parse_coords (compartido con fincaraiz).
+        loc = item.get("localizacion") or {}
+        latitud, longitud = _parse_coords(loc.get("lat"), loc.get("lon"))
+
         return {
             "ciudad": ciudad,
             "tipo_operacion": tipo,
@@ -197,6 +203,8 @@ def _to_property_row(
             "property_type": property_type,
             "url_original": url_original,
             "image_url": image_url,
+            "latitud": latitud,
+            "longitud": longitud,
         }
     except (TypeError, ValueError):
         logger.exception("Item mal formado, se ignora: mid=%s", item.get("midinmueble"))
@@ -230,6 +238,8 @@ def _upsert_batch(db: Session, rows: Iterable[dict]) -> tuple[int, int]:
             "descripcion": stmt.excluded.descripcion,
             "barrio": stmt.excluded.barrio,
             "image_url": stmt.excluded.image_url,
+            "latitud": stmt.excluded.latitud,
+            "longitud": stmt.excluded.longitud,
         },
     )
     db.execute(stmt)

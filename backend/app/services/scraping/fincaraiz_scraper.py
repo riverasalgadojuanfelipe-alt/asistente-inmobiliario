@@ -164,6 +164,28 @@ def _sleep_polite() -> None:
     time.sleep(random.uniform(DELAY_MIN_S, DELAY_MAX_S))
 
 
+def _parse_coords(lat: object, lon: object) -> tuple[Decimal | None, Decimal | None]:
+    """Devuelve (lat, lon) validadas o (None, None) si son sentinel/invalidas.
+
+    Ambas fuentes usan (0, 0) como marcador de "sin geolocalizar". Ademas,
+    Fincaraiz da strings y Metrocuadrado floats, asi que se normaliza aqui.
+    Colombia esta aprox en lat 4 / lon -74, muy lejos de (0, 0), asi que el
+    filtro no descarta datos legitimos.
+    """
+    if lat is None or lon is None:
+        return None, None
+    try:
+        lat_f = float(lat)
+        lon_f = float(lon)
+    except (TypeError, ValueError):
+        return None, None
+    if lat_f == 0.0 and lon_f == 0.0:
+        return None, None
+    if not (-90.0 <= lat_f <= 90.0) or not (-180.0 <= lon_f <= 180.0):
+        return None, None
+    return Decimal(str(lat_f)), Decimal(str(lon_f))
+
+
 def _extract_next_data(html: str) -> dict | None:
     """Extrae el JSON del <script id="__NEXT_DATA__">."""
     soup = BeautifulSoup(html, "html.parser")
@@ -255,6 +277,10 @@ def _to_property_row(
                 first = gallery[0] or {}
                 image_url = first.get("image") or None
 
+        # Coordenadas: Fincaraiz las trae como strings top-level.
+        # Descartamos (0, 0) que es sentinel de "sin geolocalizar".
+        latitud, longitud = _parse_coords(item.get("latitude"), item.get("longitude"))
+
         return {
             "ciudad": ciudad,
             "tipo_operacion": tipo,
@@ -268,6 +294,8 @@ def _to_property_row(
             "property_type": property_type,
             "url_original": url_original,
             "image_url": image_url,
+            "latitud": latitud,
+            "longitud": longitud,
         }
     except (TypeError, ValueError):
         logger.exception("Item mal formado, se ignora: id=%s", item.get("id"))
@@ -304,6 +332,8 @@ def _upsert_batch(db: Session, rows: Iterable[dict]) -> tuple[int, int]:
             "descripcion": stmt.excluded.descripcion,
             "barrio": stmt.excluded.barrio,
             "image_url": stmt.excluded.image_url,
+            "latitud": stmt.excluded.latitud,
+            "longitud": stmt.excluded.longitud,
         },
     )
     db.execute(stmt)

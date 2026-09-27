@@ -16,6 +16,8 @@ export interface Property {
   property_type: string | null;
   url_original: string | null;
   image_url: string | null;
+  latitud: number | null;
+  longitud: number | null;
   fecha_extraccion: string;
 }
 

@@ -46,6 +46,11 @@ class Property(Base):
     barrio: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     descripcion: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Coordenadas: Numeric(10, 7) da precision de ~1cm (7 decimales). Nullable
+    # porque no todos los items de las fuentes traen coords utilizables.
+    latitud: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    longitud: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+
     fuente: Mapped[str] = mapped_column(String(120), nullable=False)
     property_type: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     url_original: Mapped[str | None] = mapped_column(String(1024), nullable=True)

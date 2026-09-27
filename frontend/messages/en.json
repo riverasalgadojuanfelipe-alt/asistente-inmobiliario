@@ -42,6 +42,10 @@
     "subtitle": "Chosen from {count, plural, one {# candidate} other {# candidates}} that match your filters.",
     "subtitleSampled": "Chosen after reviewing a sample of {sample} properties, drawn at random from the {pool} that match your filters."
   },
+  "map": {
+    "eyebrow": "On the map",
+    "missing": "{count, plural, one {# without a precise location} other {# without a precise location}}"
+  },
   "card": {
     "categoryFallback": "Residential",
     "locationUnknown": "Location undisclosed",

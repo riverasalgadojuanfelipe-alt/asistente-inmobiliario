@@ -1,9 +1,16 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import dynamic from "next/dynamic";
 import type { BuscarResponse } from "@/lib/types";
 import PropertyCard from "./PropertyCard";
 import { formatCiudad } from "@/lib/format";
+
+// Leaflet toca `window` en el modulo, asi que se carga solo en cliente.
+const PropertyMap = dynamic(() => import("./PropertyMap"), {
+  ssr: false,
+  loading: () => null,
+});
 
 interface Props {
   data: BuscarResponse;
@@ -55,6 +62,8 @@ export default function Results({ data }: Props) {
             : t("subtitle", { count: total_candidatos })}
         </p>
       </header>
+
+      <PropertyMap recomendaciones={recomendaciones} />
 
       <div className="grid gap-6 md:gap-8 md:grid-cols-2 xl:grid-cols-3">
         {recomendaciones.map((r, i) => (

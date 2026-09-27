@@ -18,6 +18,8 @@ class PropertyBase(BaseModel):
     property_type: str | None = Field(default=None, max_length=64)
     url_original: str | None = Field(default=None, max_length=1024)
     image_url: str | None = Field(default=None, max_length=1024)
+    latitud: float | None = Field(default=None, ge=-90, le=90)
+    longitud: float | None = Field(default=None, ge=-180, le=180)
 
 
 class PropertyCreate(PropertyBase):
