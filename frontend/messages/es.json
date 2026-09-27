@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "title": "Asistente Inmobiliario · Colombia",
+    "description": "Encuentra tu próximo hogar en Cali, Medellín, Bogotá o Tuluá con la ayuda de un asesor virtual. Búsqueda en lenguaje natural, recomendaciones justificadas."
+  },
+  "hero": {
+    "eyebrow": "Asesor virtual · Colombia",
+    "headlineMain": "Encuentra tu próximo hogar,",
+    "headlineItalic": "contado como tú lo imaginas.",
+    "subtitle": "Descríbelo con tus palabras. Nuestro asesor lee entre líneas, consulta el mercado y te devuelve una selección curada de apartamentos y casas en Cali, Medellín, Bogotá y Tuluá.",
+    "features": {
+      "one": "Búsqueda en lenguaje natural",
+      "two": "Recomendaciones justificadas",
+      "three": "Solo apartamentos y casas"
+    }
+  },
+  "search": {
+    "placeholderHero": "Ej: apartamento tranquilo en Cali, cerca de parques, máximo 800 millones…",
+    "placeholderCompact": "Refina tu búsqueda…",
+    "button": "Buscar",
+    "hint": "Escribe como le hablarías a un asesor. Enter para enviar · Shift+Enter para nueva línea.",
+    "srLabel": "Consulta en lenguaje natural",
+    "back": "Volver",
+    "brand": "Asistente Inmobiliario"
+  },
+  "loading": {
+    "messages": [
+      "Analizando el mercado en {zona}…",
+      "Leyendo entre líneas tu consulta…",
+      "Curando una selección corta y honesta…",
+      "Consultando al asesor sobre cada propiedad…"
+    ],
+    "hint": "Esto suele tardar unos segundos.",
+    "defaultZone": "Colombia"
+  },
+  "results": {
+    "eyebrow": "Selección del asesor",
+    "titleForRent": "{count, plural, one {# propiedad} other {# propiedades}} para <em>arriendo</em>",
+    "titleForSale": "{count, plural, one {# propiedad} other {# propiedades}} para <em>compra</em>",
+    "titleGeneric": "{count, plural, one {# propiedad} other {# propiedades}} <em>para ti</em>",
+    "inCity": "en <em>{city}</em>",
+    "subtitle": "Elegidas de {count, plural, one {# candidato} other {# candidatos}} que cumplen tus filtros."
+  },
+  "card": {
+    "categoryFallback": "Residencial",
+    "locationUnknown": "Ubicación reservada",
+    "perMonth": "/ mes",
+    "specs": {
+      "rooms": "Habitaciones",
+      "bathrooms": "Baños",
+      "area": "Área"
+    },
+    "advisorNote": "Nota del asesor",
+    "viewFull": "Ver ficha completa"
+  },
+  "empty": {
+    "title": "Aún no encontramos algo así.",
+    "description": "No hay propiedades que cumplan todos esos criterios en este momento. Prueba ampliar el presupuesto, cambiar la ciudad o relajar el mínimo de habitaciones.",
+    "suggestionsLabel": "Prueba con",
+    "suggestions": [
+      "Apartamento en Bogotá para arriendo, 2 habitaciones, máximo 3 millones",
+      "Casa en Medellín en venta, familiar, cerca de colegios, hasta 900 millones",
+      "Apartamento moderno en Cali, un dormitorio, con buena iluminación"
+    ]
+  },
+  "error": {
+    "title": "No pudimos completar la búsqueda.",
+    "retry": "Intentar de nuevo",
+    "rateLimit": "El asesor está momentáneamente ocupado. Intenta de nuevo en unos segundos.",
+    "notConnected": "No pudimos conectarnos al asesor. Verifica tu conexión e intenta de nuevo."
+  },
+  "footer": {
+    "disclaimer": "La información proviene de fuentes públicas como Fincaraíz y puede estar desactualizada. Verifica precio, disponibilidad y detalles directamente con el vendedor o arrendador. No participamos en las transacciones ni garantizamos la exactitud de lo mostrado.",
+    "copyright": "© {year} Asistente Inmobiliario · Colombia",
+    "cities": "Cali · Medellín · Bogotá · Tuluá"
+  },
+  "locale": {
+    "es": "ES",
+    "en": "EN",
+    "switchAria": "Cambiar idioma"
+  }
+}

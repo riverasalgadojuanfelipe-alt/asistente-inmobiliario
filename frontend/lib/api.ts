@@ -1,8 +1,7 @@
-import type { BuscarResponse } from "./types";
+import type { BuscarResponse, Idioma } from "./types";
 
 // URL base del backend. En dev cae al localhost; en producción se debe
-// setear NEXT_PUBLIC_API_URL en Vercel apuntando al servicio de Render
-// (ej: https://asistente-inmobiliario-api.onrender.com — sin trailing slash).
+// setear NEXT_PUBLIC_API_URL en Vercel apuntando al servicio de Render.
 const API_URL = (
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 ).replace(/\/+$/, "");
@@ -17,11 +16,15 @@ export class ApiError extends Error {
   }
 }
 
-export async function buscar(query: string, signal?: AbortSignal): Promise<BuscarResponse> {
+export async function buscar(
+  query: string,
+  idioma: Idioma = "es",
+  signal?: AbortSignal,
+): Promise<BuscarResponse> {
   const res = await fetch(`${API_V1}/buscar`, {
     method: "POST",
-    headers: { "Content-Type": "text/plain" },
-    body: query,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, idioma }),
     signal,
   });
 

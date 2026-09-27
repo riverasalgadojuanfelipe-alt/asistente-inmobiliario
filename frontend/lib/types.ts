@@ -1,5 +1,6 @@
 export type Ciudad = "cali" | "medellin" | "bogota" | "tulua";
 export type TipoOperacion = "venta" | "arriendo";
+export type Idioma = "es" | "en";
 
 export interface Property {
   id: number;

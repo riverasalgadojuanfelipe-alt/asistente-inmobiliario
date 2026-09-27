@@ -1,9 +1,15 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+
 interface Props {
   message: string;
   onRetry: () => void;
 }
 
 export default function ErrorState({ message, onRetry }: Props) {
+  const t = useTranslations("error");
+
   return (
     <div className="max-w-xl mx-auto text-center py-16 md:py-20 animate-fade-up">
       <div className="mx-auto mb-8 w-14 h-14 rounded-full border border-hairline dark:border-white/10 flex items-center justify-center">
@@ -18,7 +24,7 @@ export default function ErrorState({ message, onRetry }: Props) {
         </svg>
       </div>
       <h2 className="font-serif text-3xl text-graphite dark:text-cream leading-snug">
-        No pudimos completar la búsqueda.
+        {t("title")}
       </h2>
       <p className="mt-4 text-graphite-soft dark:text-cream/70">{message}</p>
       <button
@@ -29,7 +35,7 @@ export default function ErrorState({ message, onRetry }: Props) {
           hover:bg-forest-hover transition
         "
       >
-        Intentar de nuevo
+        {t("retry")}
       </button>
     </div>
   );

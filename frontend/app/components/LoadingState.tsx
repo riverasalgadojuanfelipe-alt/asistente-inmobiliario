@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { formatCiudad } from "@/lib/format";
 
 interface Props {
@@ -17,29 +18,21 @@ function detectCiudad(q: string): string | null {
 }
 
 export default function LoadingState({ query }: Props) {
-  const ciudad = detectCiudad(query);
-  const zona = ciudad ? formatCiudad(ciudad) : "Colombia";
+  const t = useTranslations("loading");
+  const messages = t.raw("messages") as string[];
 
-  const messages = [
-    `Analizando el mercado en ${zona}…`,
-    "Leyendo entre líneas tu consulta…",
-    "Curando una selección corta y honesta…",
-    "Consultando al asesor sobre cada propiedad…",
-  ];
+  const ciudad = detectCiudad(query);
+  const zona = ciudad ? formatCiudad(ciudad) : t("defaultZone");
 
   const [i, setI] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setI((n) => (n + 1) % messages.length), 2200);
-    return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const id = setInterval(() => setI((n) => (n + 1) % messages.length), 2200);
+    return () => clearInterval(id);
+  }, [messages.length]);
 
   return (
     <div
-      className="
-        max-w-2xl mx-auto text-center py-16 md:py-24
-        animate-fade-up
-      "
+      className="max-w-2xl mx-auto text-center py-16 md:py-24 animate-fade-up"
       role="status"
       aria-live="polite"
     >
@@ -50,11 +43,9 @@ export default function LoadingState({ query }: Props) {
       </div>
 
       <p className="font-serif text-2xl md:text-3xl text-graphite dark:text-cream italic leading-snug">
-        {messages[i]}
+        {messages[i].replace("{zona}", zona)}
       </p>
-      <p className="mt-4 text-sm text-graphite-mute">
-        Esto suele tardar unos segundos.
-      </p>
+      <p className="mt-4 text-sm text-graphite-mute">{t("hint")}</p>
     </div>
   );
 }

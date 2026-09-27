@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { BuscarResponse } from "@/lib/types";
 import PropertyCard from "./PropertyCard";
 import { formatCiudad } from "@/lib/format";
@@ -7,35 +10,44 @@ interface Props {
 }
 
 export default function Results({ data }: Props) {
+  const t = useTranslations("results");
   const { recomendaciones, filtros_extraidos, total_candidatos } = data;
   const ciudad = filtros_extraidos.ciudad
     ? formatCiudad(filtros_extraidos.ciudad)
     : null;
   const op = filtros_extraidos.tipo_operacion;
 
+  const titleKey =
+    op === "arriendo"
+      ? "titleForRent"
+      : op === "venta"
+      ? "titleForSale"
+      : "titleGeneric";
+
   return (
     <section className="max-w-6xl mx-auto px-6 md:px-10 pb-24">
       <header className="mb-10 md:mb-14 animate-fade-up">
         <p className="uppercase tracking-[0.22em] text-xs text-bronze mb-3">
-          Selección del asesor
+          {t("eyebrow")}
         </p>
         <h2 className="font-serif text-3xl md:text-4xl text-graphite dark:text-cream leading-tight">
-          {recomendaciones.length} propiedad{recomendaciones.length === 1 ? "" : "es"}{" "}
-          para{" "}
-          <span className="italic">
-            {op === "arriendo" ? "arriendo" : op === "venta" ? "compra" : "ti"}
-          </span>
+          {t.rich(titleKey, {
+            count: recomendaciones.length,
+            em: (chunks) => <span className="italic">{chunks}</span>,
+          })}
           {ciudad && (
             <>
               {" "}
-              en <span className="italic">{ciudad}</span>
+              {t.rich("inCity", {
+                city: ciudad,
+                em: (chunks) => <span className="italic">{chunks}</span>,
+              })}
             </>
           )}
           .
         </h2>
         <p className="mt-3 text-sm text-graphite-mute">
-          Elegidas de {total_candidatos} candidato{total_candidatos === 1 ? "" : "s"} que
-          cumplen tus filtros.
+          {t("subtitle", { count: total_candidatos })}
         </p>
       </header>
 

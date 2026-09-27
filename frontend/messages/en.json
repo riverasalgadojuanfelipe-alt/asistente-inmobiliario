@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "title": "Real Estate Assistant · Colombia",
+    "description": "Find your next home in Cali, Medellín, Bogotá or Tuluá with a virtual advisor. Natural-language search with justified recommendations."
+  },
+  "hero": {
+    "eyebrow": "Virtual advisor · Colombia",
+    "headlineMain": "Find your next home,",
+    "headlineItalic": "told the way you picture it.",
+    "subtitle": "Describe it in your own words. Our advisor reads between the lines, checks the market, and returns a curated shortlist of apartments and houses in Cali, Medellín, Bogotá and Tuluá.",
+    "features": {
+      "one": "Natural-language search",
+      "two": "Justified recommendations",
+      "three": "Only apartments and houses"
+    }
+  },
+  "search": {
+    "placeholderHero": "E.g. quiet apartment in Cali, near parks, under 800 million…",
+    "placeholderCompact": "Refine your search…",
+    "button": "Search",
+    "hint": "Write as you would speak to an advisor. Enter to send · Shift+Enter for a new line.",
+    "srLabel": "Natural-language query",
+    "back": "Back",
+    "brand": "Real Estate Assistant"
+  },
+  "loading": {
+    "messages": [
+      "Analyzing the market in {zona}…",
+      "Reading between the lines of your query…",
+      "Curating a short, honest shortlist…",
+      "Consulting the advisor on each property…"
+    ],
+    "hint": "This usually takes a few seconds.",
+    "defaultZone": "Colombia"
+  },
+  "results": {
+    "eyebrow": "Advisor's shortlist",
+    "titleForRent": "{count, plural, one {# property} other {# properties}} for <em>rent</em>",
+    "titleForSale": "{count, plural, one {# property} other {# properties}} for <em>sale</em>",
+    "titleGeneric": "{count, plural, one {# property} other {# properties}} <em>for you</em>",
+    "inCity": "in <em>{city}</em>",
+    "subtitle": "Chosen from {count, plural, one {# candidate} other {# candidates}} that match your filters."
+  },
+  "card": {
+    "categoryFallback": "Residential",
+    "locationUnknown": "Location undisclosed",
+    "perMonth": "/ month",
+    "specs": {
+      "rooms": "Rooms",
+      "bathrooms": "Bathrooms",
+      "area": "Area"
+    },
+    "advisorNote": "Advisor's note",
+    "viewFull": "View full listing"
+  },
+  "empty": {
+    "title": "Nothing quite like that yet.",
+    "description": "No properties match all those criteria right now. Try widening the budget, changing the city, or relaxing the minimum room count.",
+    "suggestionsLabel": "Try",
+    "suggestions": [
+      "Apartment in Bogotá for rent, 2 bedrooms, up to 3 million",
+      "House in Medellín for sale, family-friendly, near schools, up to 900 million",
+      "Modern apartment in Cali, one bedroom, with good natural light"
+    ]
+  },
+  "error": {
+    "title": "We couldn't complete the search.",
+    "retry": "Try again",
+    "rateLimit": "The advisor is momentarily busy. Try again in a few seconds.",
+    "notConnected": "We couldn't reach the advisor. Check your connection and try again."
+  },
+  "footer": {
+    "disclaimer": "Data comes from public third-party sources such as Fincaraíz and may be out of date. Verify price, availability and details directly with the seller or landlord. We don't take part in transactions nor guarantee the accuracy of what's shown.",
+    "copyright": "© {year} Real Estate Assistant · Colombia",
+    "cities": "Cali · Medellín · Bogotá · Tuluá"
+  },
+  "locale": {
+    "es": "ES",
+    "en": "EN",
+    "switchAria": "Change language"
+  }
+}

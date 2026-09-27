@@ -22,7 +22,7 @@ import logging
 import time
 from decimal import Decimal
 from functools import lru_cache
-from typing import Any
+from typing import Any, Literal
 
 from google import genai
 from google.genai import errors as genai_errors
@@ -41,6 +41,13 @@ logger = logging.getLogger(__name__)
 MAX_CANDIDATOS = 15
 MIN_RECOMENDACIONES = 3
 MAX_RECOMENDACIONES = 5
+
+Idioma = Literal["es", "en"]
+
+_LANGUAGE_NAME: dict[Idioma, str] = {
+    "es": "español natural (variedad colombiana)",
+    "en": "natural English",
+}
 
 
 class ExtractedFilters(BaseModel):
@@ -155,15 +162,18 @@ Eres un asesor inmobiliario colombiano, honesto y con criterio. Recibes:
   1) La consulta ORIGINAL del usuario (léela completa: incluye pistas de
      estilo de vida, preferencias, contexto).
   2) Una lista de propiedades candidatas ya filtradas por criterios básicos
-     (ciudad, precio, habitaciones, área) con sus datos.
+     (ciudad, precio, habitaciones, área) con sus datos. La `descripcion` de
+     cada candidato está en español (viene de Fincaraíz).
 
 Tu tarea:
 - Elegir entre {min_reco} y {max_reco} propiedades que MEJOR encajen con lo
   que el usuario pidió, prestando atención especial a los matices de estilo
   de vida que menciona (tranquilidad, luz, cercanía a algo, moderno, familiar,
   vista, seguridad, amoblado, etc.).
-- Para cada una, escribir en 1-2 frases en español natural POR QUÉ encaja,
+- Para cada una, escribir en 1-2 frases en {language} POR QUÉ encaja,
   citando pistas concretas de la descripción o el barrio (no inventes datos).
+  IMPORTANTE: el campo `razon` DEBE estar en {language}, aunque la
+  descripción de origen esté en español — traduce/parafrasea lo relevante.
 - Si una descripción no soporta un matiz del usuario (p.ej. piden "cerca de
   parques" y la descripción no lo menciona), sé honesto: menciónalo como
   algo a verificar en la visita, no lo afirmes.
@@ -196,7 +206,11 @@ def _parsed_to_public(p: ParsedFilters) -> ExtractedFilters:
     )
 
 
-def recomendar(query: str, candidatos: list[Property]) -> list[Recomendacion]:
+def recomendar(
+    query: str,
+    candidatos: list[Property],
+    idioma: Idioma = "es",
+) -> list[Recomendacion]:
     """Única llamada a Gemini: recibe consulta original + candidatos → recos."""
     if not candidatos:
         return []
@@ -206,7 +220,9 @@ def recomendar(query: str, candidatos: list[Property]) -> list[Recomendacion]:
         "candidatos": [_property_to_prompt_dict(p) for p in candidatos],
     }
     system = _ADVISOR_SYSTEM_PROMPT.format(
-        min_reco=MIN_RECOMENDACIONES, max_reco=MAX_RECOMENDACIONES
+        min_reco=MIN_RECOMENDACIONES,
+        max_reco=MAX_RECOMENDACIONES,
+        language=_LANGUAGE_NAME[idioma],
     )
     contents = "DATOS_DE_ENTRADA:\n" + json.dumps(payload, ensure_ascii=False, indent=2)
 
@@ -237,7 +253,9 @@ def recomendar(query: str, candidatos: list[Property]) -> list[Recomendacion]:
     )
 
 
-def buscar_inteligente(db: Session, query: str) -> BuscarResponse:
+def buscar_inteligente(
+    db: Session, query: str, idioma: Idioma = "es"
+) -> BuscarResponse:
     """Punto de entrada del endpoint POST /buscar."""
     query = query.strip()
     if not query:
@@ -253,20 +271,27 @@ def buscar_inteligente(db: Session, query: str) -> BuscarResponse:
     )
 
     if not candidatos:
+        empty_msg = {
+            "es": (
+                "No se encontraron propiedades que cumplan con los criterios "
+                "de tu consulta. Prueba ampliando el presupuesto, cambiando la "
+                "ciudad o relajando el mínimo de habitaciones/área."
+            ),
+            "en": (
+                "No properties matched your criteria. Try widening the budget, "
+                "changing the city, or relaxing the minimum rooms/area."
+            ),
+        }[idioma]
         return BuscarResponse(
             query=query,
             filtros_extraidos=filtros_pub,
             total_candidatos=0,
             recomendaciones=[],
-            mensaje=(
-                "No se encontraron propiedades que cumplan con los criterios "
-                "de tu consulta. Prueba ampliando el presupuesto, cambiando la "
-                "ciudad o relajando el mínimo de habitaciones/área."
-            ),
+            mensaje=empty_msg,
         )
 
     # Paso 3: UNA llamada a Gemini con el texto original + candidatos
-    recos = recomendar(query, candidatos)
+    recos = recomendar(query, candidatos, idioma=idioma)
     by_id = {p.id: p for p in candidatos}
     salida = [
         PropiedadRecomendada(

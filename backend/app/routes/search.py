@@ -1,7 +1,9 @@
 import re
+from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from google.genai import errors as genai_errors
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -14,20 +16,25 @@ from app.services.ai_search import (
 
 router = APIRouter(prefix="/buscar", tags=["buscar"])
 
-# Longitud máxima aceptada en el body de /buscar. Con 500 chars alcanza para
-# consultas ricas ('apartamento tranquilo en Cali cerca de parques, con buena
-# luz, máximo 800 millones, mínimo 3 habitaciones, área mínima 80m2...').
-# Todo lo que pase esto probablemente es abuso o error del cliente.
 MAX_QUERY_LENGTH = 500
 
 _RETRY_DELAY_RE = re.compile(r"retry in ([\d.]+)s", re.IGNORECASE)
 
 
+class BuscarRequest(BaseModel):
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=MAX_QUERY_LENGTH,
+        description="Consulta en lenguaje natural (máx. 500 chars).",
+    )
+    idioma: Literal["es", "en"] = Field(
+        default="es",
+        description="Idioma de la respuesta del asesor: 'es' o 'en'.",
+    )
+
+
 def _friendly_client_error(exc: genai_errors.ClientError) -> tuple[int, str]:
-    """
-    Traduce un ClientError de Gemini a (status_code, mensaje humano).
-    Se enfoca en el caso 429 (quota exhausted) del tier gratuito.
-    """
     code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
     raw = str(exc)
     if code == 429 or "RESOURCE_EXHAUSTED" in raw:
@@ -55,36 +62,18 @@ def _friendly_client_error(exc: genai_errors.ClientError) -> tuple[int, str]:
 @limiter.limit("10/minute")
 def buscar(
     request: Request,  # requerido por slowapi para obtener la IP del cliente
-    query: str = Body(
-        ...,
-        media_type="text/plain",
-        examples=[
-            "Quiero un apartamento tranquilo en Cali, cerca de parques, "
-            "con buena luz, máximo 800 millones."
-        ],
-    ),
+    body: BuscarRequest,
     db: Session = Depends(get_db),
 ) -> BuscarResponse:
-    # Validación de longitud en español claro (evitamos el 422 de Pydantic
-    # con message técnico en inglés).
-    q = (query or "").strip()
+    q = body.query.strip()
     if not q:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La consulta está vacía. Escribe algo como 'apartamento tranquilo en Cali'.",
         )
-    if len(query) > MAX_QUERY_LENGTH:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=(
-                f"La consulta es demasiado larga ({len(query)} caracteres). "
-                f"El máximo permitido es {MAX_QUERY_LENGTH}. "
-                "Resume tu búsqueda a lo esencial."
-            ),
-        )
 
     try:
-        return buscar_inteligente(db, q)
+        return buscar_inteligente(db, q, idioma=body.idioma)
     except AISearchError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
     except genai_errors.ClientError as exc:

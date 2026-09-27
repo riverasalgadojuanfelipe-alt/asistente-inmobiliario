@@ -61,11 +61,17 @@ def _extract_ciudad(q: str) -> Ciudad | None:
 # Tipo de operación
 # ---------------------------------------------------------------------------
 _ARRIENDO_RE = re.compile(
-    r"\b(arriendo|arrend|arrendar|alquil|alquilar|rentar?|renta\b)",
+    # ES: arriendo/arrendar/alquilar/renta/rentar
+    # EN: rent/rental/renting/lease/leasing/to lease
+    r"\b(arriendo|arrend|arrendar|alquil|alquilar|rentar?|renta"
+    r"|rent(?:al|ing)?|leas(?:e|ing))\b",
     re.IGNORECASE,
 )
 _VENTA_RE = re.compile(
-    r"\b(compr[ao]|comprar|venta|vender|adquir[íi]r|adquirir)\b",
+    # ES: comprar/venta/vender/adquirir
+    # EN: buy/buying/purchase/for sale
+    r"\b(compr[ao]|comprar|venta|vender|adquir[íi]r|adquirir"
+    r"|buy(?:ing)?|purchase|for\s+sale)\b",
     re.IGNORECASE,
 )
 
@@ -115,13 +121,14 @@ def _price_value(num_s: str, unit: str | None) -> float | None:
     if n <= 0:
         return None
     u = (unit or "").lower().strip()
-    if u in ("mil millones", "mil-millones"):
+    # ES: mil millones / millones / mil ; EN: billion / million / thousand
+    if u in ("mil millones", "mil-millones", "billion", "billions"):
         return n * 1_000_000_000
-    if u in ("millones", "millón", "millon"):
+    if u in ("millones", "millón", "millon", "million", "millions"):
         return n * 1_000_000
-    if u == "m":  # "800M" en Colombia = 800 millones
+    if u == "m":  # "800M" tanto ES ("millones") como EN ("million")
         return n * 1_000_000
-    if u == "mil":
+    if u in ("mil", "thousand", "thousands"):
         return n * 1_000
     if u == "k":
         return n * 1_000
@@ -133,24 +140,39 @@ def _price_value(num_s: str, unit: str | None) -> float | None:
 
 
 # número + unidad opcional. Grupos: 1=num, 2=unit
+# Acepta prefijo opcional '$' o 'COP' antes del número (ES/EN).
 _PRICE_TOKEN = re.compile(
-    rf"({_NUM})\s*(mil\s+millones|millones|millón|millon|mil|m\b|k\b)?",
+    rf"(?:\$|COP\s*)?({_NUM})\s*"
+    rf"(mil\s+millones|millones|millón|millon|billions?|millions?|thousands?"
+    rf"|mil|m\b|k\b)?",
     re.IGNORECASE,
 )
 
 _MAX_ANCHOR = re.compile(
-    r"\b(?:m[aá]ximo|hasta|tope|presupuesto\s+(?:de|hasta)|no\s+m[aá]s\s+de)\b",
+    # ES: máximo/hasta/tope/presupuesto/no más de
+    # EN: max/maximum/up to/under/no more than/budget
+    r"\b(?:m[aá]ximo|hasta|tope|presupuesto\s+(?:de|hasta)|no\s+m[aá]s\s+de"
+    r"|max(?:imum)?|up\s+to|under|no\s+more\s+than|budget(?:\s+of)?)\b",
     re.IGNORECASE,
 )
 _MIN_ANCHOR = re.compile(
-    r"\b(?:m[ií]nimo|desde|al\s+menos|a\s+partir\s+de|no\s+menos\s+de)\b",
+    # ES: mínimo/desde/al menos/a partir de/no menos de
+    # EN: min/minimum/from/at least/starting at/no less than
+    r"\b(?:m[ií]nimo|desde|al\s+menos|a\s+partir\s+de|no\s+menos\s+de"
+    r"|min(?:imum)?|from|at\s+least|starting\s+at|no\s+less\s+than)\b",
     re.IGNORECASE,
 )
 
 
 def _first_price_after(anchor_end: int, text: str) -> float | None:
-    """Busca el primer precio en los ~60 chars después del anchor."""
-    tail = text[anchor_end : anchor_end + 60]
+    """
+    Busca el primer precio en los ~30 chars después del anchor.
+    Ventana ajustada para evitar que un anchor como 'at least' capture
+    un precio que en realidad correspondía a otra frase después
+    (ej: 'at least 4 bedrooms, under $1.5 billion' — 'at least' no
+    debería atribuirse a '1.5 billion').
+    """
+    tail = text[anchor_end : anchor_end + 30]
     for m in _PRICE_TOKEN.finditer(tail):
         p = _price_value(m.group(1), m.group(2))
         if p is not None:
@@ -170,14 +192,17 @@ def _extract_prices(q: str) -> tuple[float | None, float | None]:
         precio_min = _first_price_after(m.end(), q)
 
     # Fallback: si no hay anchor, pero mencionan un valor claramente monetario
-    # ("800 millones", "3M"), lo interpretamos como TOPE (usuario dice presupuesto).
+    # ("800 millones", "3M", "800 million"), lo interpretamos como TOPE.
     if precio_max is None:
+        _MONETARY = {
+            "millones", "millón", "millon", "mil millones",
+            "million", "millions", "billion", "billions", "m",
+        }
         for m in _PRICE_TOKEN.finditer(q):
             unit = (m.group(2) or "").lower().strip()
-            # solo si hay unidad monetaria explícita
-            if unit in ("millones", "millón", "millon", "m", "mil millones"):
+            if unit in _MONETARY:
                 p = _price_value(m.group(1), m.group(2))
-                if p and p >= 500_000:  # umbral defensivo
+                if p and p >= 500_000:
                     precio_max = p
                     break
 
@@ -188,11 +213,16 @@ def _extract_prices(q: str) -> tuple[float | None, float | None]:
 # Habitaciones y área
 # ---------------------------------------------------------------------------
 _HAB_RE = re.compile(
-    r"\b(\d+)\s+(?:habitaci\w*|alcob\w*|cuart\w*|rec[aá]mar\w*|dormitor\w*)",
+    # ES: habitaci*/alcob*/cuart*/recámara/dormitor*
+    # EN: bedroom(s)/room(s)/bed(s)
+    r"\b(\d+)\s+(?:habitaci\w*|alcob\w*|cuart\w*|rec[aá]mar\w*|dormitor\w*"
+    r"|bedrooms?|rooms?|beds?)\b",
     re.IGNORECASE,
 )
 _AREA_RE = re.compile(
-    rf"\b({_NUM})\s*(?:m2|m²|metros?(?:\s+cuadrados)?)\b",
+    # ES: m2/m²/metros(cuadrados)
+    # EN: sqm/sqft/square meters — nos quedamos con m2/sqm (sqft es imperial y no lo tenemos en BD)
+    rf"\b({_NUM})\s*(?:m2|m²|metros?(?:\s+cuadrados)?|sqm|square\s+meters?)\b",
     re.IGNORECASE,
 )
 

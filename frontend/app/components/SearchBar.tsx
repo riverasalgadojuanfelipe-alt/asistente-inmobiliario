@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface Props {
   initialValue?: string;
@@ -9,15 +10,13 @@ interface Props {
   variant?: "hero" | "compact";
 }
 
-const HERO_PLACEHOLDER =
-  "Ej: apartamento tranquilo en Cali, cerca de parques, máximo 800 millones…";
-
 export default function SearchBar({
   initialValue = "",
   loading = false,
   onSubmit,
   variant = "hero",
 }: Props) {
+  const t = useTranslations("search");
   const [value, setValue] = useState(initialValue);
 
   function handleSubmit(e: React.FormEvent) {
@@ -33,13 +32,11 @@ export default function SearchBar({
     <form
       onSubmit={handleSubmit}
       className={
-        isHero
-          ? "w-full max-w-2xl mx-auto"
-          : "w-full max-w-3xl mx-auto"
+        isHero ? "w-full max-w-2xl mx-auto" : "w-full max-w-3xl mx-auto"
       }
     >
       <label htmlFor="q" className="sr-only">
-        Consulta en lenguaje natural
+        {t("srLabel")}
       </label>
       <div
         className={`
@@ -60,8 +57,11 @@ export default function SearchBar({
               handleSubmit(e);
             }
           }}
-          placeholder={isHero ? HERO_PLACEHOLDER : "Refina tu búsqueda…"}
+          placeholder={
+            isHero ? t("placeholderHero") : t("placeholderCompact")
+          }
           rows={isHero ? 2 : 1}
+          maxLength={500}
           className="
             flex-1 resize-none bg-transparent outline-none
             text-graphite dark:text-cream
@@ -80,9 +80,9 @@ export default function SearchBar({
             disabled:opacity-50 disabled:cursor-not-allowed
             focus:outline-none focus-visible:ring-2 focus-visible:ring-bronze/60
           "
-          aria-label="Buscar"
+          aria-label={t("button")}
         >
-          <span className="hidden sm:inline">Buscar</span>
+          <span className="hidden sm:inline">{t("button")}</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
@@ -102,7 +102,7 @@ export default function SearchBar({
       </div>
       {isHero && (
         <p className="mt-3 text-xs text-graphite-mute text-center">
-          Escribe como le hablarías a un asesor. Enter para enviar · Shift+Enter para nueva línea.
+          {t("hint")}
         </p>
       )}
     </form>
