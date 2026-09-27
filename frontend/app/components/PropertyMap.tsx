@@ -47,7 +47,16 @@ export default function PropertyMap({ recomendaciones }: Props) {
       .map((m) => ({ item: m.item, lat: Number(m.lat), lon: Number(m.lon) }));
   }, [recomendaciones]);
 
-  if (markers.length === 0) return null;
+  if (markers.length === 0) {
+    return (
+      <div className="mb-10 md:mb-14 animate-fade-up">
+        <p className="uppercase tracking-[0.22em] text-xs text-bronze mb-2">
+          {t("eyebrow")}
+        </p>
+        <p className="text-sm text-graphite-mute">{t("noneAvailable")}</p>
+      </div>
+    );
+  }
 
   const center: [number, number] =
     markers.length === 1

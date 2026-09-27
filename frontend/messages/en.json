@@ -44,7 +44,8 @@
   },
   "map": {
     "eyebrow": "On the map",
-    "missing": "{count, plural, one {# without a precise location} other {# without a precise location}}"
+    "missing": "{count, plural, one {# without a precise location} other {# without a precise location}}",
+    "noneAvailable": "None of the recommended properties include precise coordinates; the map is hidden for this search."
   },
   "card": {
     "categoryFallback": "Residential",

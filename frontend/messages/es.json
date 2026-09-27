@@ -44,7 +44,8 @@
   },
   "map": {
     "eyebrow": "Ubicación en el mapa",
-    "missing": "{count, plural, one {# sin ubicación exacta} other {# sin ubicación exacta}}"
+    "missing": "{count, plural, one {# sin ubicación exacta} other {# sin ubicación exacta}}",
+    "noneAvailable": "Ninguna de las propiedades recomendadas trae coordenadas exactas; el mapa se ocultó para esta búsqueda."
   },
   "card": {
     "categoryFallback": "Residencial",
